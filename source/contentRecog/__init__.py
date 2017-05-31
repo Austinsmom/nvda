@@ -72,6 +72,13 @@ class RecognitionResult(object):
 	"""
 
 	def makeTextInfo(self, obj, position):
+		"""Make a TextInfo within the recognition result text at the requested position.
+		@param obj: The object to return for the C{obj} property of the TextInfo.
+			The TextInfo itself doesn't use this, but NVDA requires it to set the review object, etc.
+		@param position: The requested position; one of the C{textInfos.POSITION_*} constants.
+		@return: The TextInfo at the requested position in the result.
+		@rtype: L{textInfos.TextInfo}
+		"""
 		raise NotImplementedError
 
 # Used by LinesWordsResult.
@@ -162,6 +169,7 @@ class LwrTextInfo(textInfos.offsets.OffsetsTextInfo):
 			if end > offset:
 				return (start, end)
 			start = end
+		# offset is too big. Fail gracefully by returning the last line.
 		return (start, self.result.textLen)
 
 	def _getWordOffsets(self, offset):
@@ -170,6 +178,7 @@ class LwrTextInfo(textInfos.offsets.OffsetsTextInfo):
 			if word.offset > offset:
 				return (start, word.offset)
 			start = word.offset
+		# offset is in the last word (or offset is too big).
 		return (start, self.result.textLen)
 
 	def _getPointFromOffset(self, offset):
@@ -198,12 +207,16 @@ def ensureInit():
 	selectedRecognizer = recognizers[0]
 	_isInitialized = True
 
+#: Keeps track of the recognition in progress, if any.
 _activeRecog = None
 def recognizeNavigatorObject():
+	"""User interface function to recognize content in the navigator object.
+	This should be called from a script or in response to a GUI action.
+	"""
 	global _activeRecog
 	if not selectedRecognizer:
 		# Translators: Reported when no recognizers are available.
-		ui.message(_("No recognizers available"))
+		ui.message(_("No content recognizers available"))
 		return
 	if _activeRecog:
 		_activeRecog.cancel()
