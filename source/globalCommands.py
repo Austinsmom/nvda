@@ -1999,6 +1999,13 @@ class GlobalCommands(ScriptableObject):
 	# Translators: Describes a command.
 	script_interactWithMath.__doc__ = _("Begins interaction with math content")
 
+	def script_recognizeNavigatorObject(self, gesture):
+		import contentRecog
+		contentRecog.ensureInit()
+		contentRecog.recognizeNavigatorObject()
+	# Translators: Describes a command.
+	script_recognizeNavigatorObject.__doc__ = _("Recognize the content of the current navigator object")
+
 	__gestures = {
 		# Basic
 		"kb:NVDA+n": "showGui",
@@ -2178,6 +2185,7 @@ class GlobalCommands(ScriptableObject):
 		"kb:NVDA+control+f3": "reloadPlugins",
 		"kb(desktop):NVDA+control+f2": "test_navigatorDisplayModelText",
 		"kb:NVDA+alt+m": "interactWithMath",
+		"kb:NVDA+r": "recognizeNavigatorObject",
 	}
 
 #: The single global commands instance.
