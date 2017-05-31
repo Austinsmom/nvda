@@ -32,13 +32,15 @@ using namespace Windows::Media::Ocr;
 using namespace Windows::Foundation::Collections;
 using namespace Windows::Globalization;
 using namespace Windows::Graphics::Imaging;
+using namespace Windows::Data::Json;
 
-UwpOcr* __stdcall uwpOcr_initialize(const char16* language) {
+UwpOcr* __stdcall uwpOcr_initialize(const char16* language, uwpOcr_Callback callback) {
 	auto engine = OcrEngine::TryCreateFromLanguage(ref new Language(ref new String(language)));
 	if (!engine)
 		return NULL;
 	auto instance = new UwpOcr;
 	instance->engine = engine;
+	instance->callback = callback;
 	return instance;
 }
 
@@ -48,28 +50,41 @@ void __stdcall uwpOcr_terminate(UwpOcr* instance) {
 
 void __stdcall uwpOcr_recognize(UwpOcr* instance, const RGBQUAD* image, unsigned int width, unsigned int height) {
 	SoftwareBitmap^ sbmp;
-	try {
 	unsigned int numBytes = sizeof(RGBQUAD) * width * height;
 	auto buf = ref new Buffer(numBytes);
 	buf->Length = numBytes;
 	BYTE* bytes = getBytes(buf);
 	memcpy(bytes, image, numBytes);
-	LOG_INFO(L"before sbmp");
-	sbmp = SoftwareBitmap::CreateCopyFromBuffer(buf, BitmapPixelFormat::Bgra8, width, height);
-	} catch (Platform::Exception^ e) {
-		LOG_ERROR(L"Error " << e->HResult << L": " << e->Message->Data());
-		return;
-	}
+	sbmp = SoftwareBitmap::CreateCopyFromBuffer(buf, BitmapPixelFormat::Bgra8, width, height, BitmapAlphaMode::Ignore);
 	task<OcrResult^> ocrTask = create_task(instance->engine->RecognizeAsync(sbmp));
 	ocrTask.then([instance] (OcrResult^ result) {
-		LOG_ERROR(result->Text->Data());
+		//LOG_ERROR(result->Text->Data());
+		auto lines = result->Lines;
+		auto jLines = ref new JsonArray();
+		for (unsigned short l = 0; l < lines->Size; ++l) {
+			auto words = lines->GetAt(l)->Words;
+			auto jWords = ref new JsonArray();
+			for (unsigned short w = 0; w < words->Size; ++w) {
+				auto word = words->GetAt(w);
+				auto jWord = ref new JsonObject();
+				auto rect = word->BoundingRect;
+				jWord->Insert("x", JsonValue::CreateNumberValue(rect.X));
+				jWord->Insert("y", JsonValue::CreateNumberValue(rect.Y));
+				jWord->Insert("width", JsonValue::CreateNumberValue(rect.Width));
+				jWord->Insert("height", JsonValue::CreateNumberValue(rect.Height));
+				jWord->Insert("text", JsonValue::CreateStringValue(word->Text));
+				jWords->Append(jWord);
+			}
+			jLines->Append(jWords);
+		}
+		instance->callback(jLines->Stringify()->Data());
 	}).then([instance] (task<void> previous) {
 		// Catch any unhandled exceptions that occurred during these tasks.
 		try {
 			previous.get();
 		} catch (Platform::Exception^ e) {
 			LOG_ERROR(L"Error " << e->HResult << L": " << e->Message->Data());
-			//instance->callback(NULL);
+			instance->callback(NULL);
 		}
 	});
 }

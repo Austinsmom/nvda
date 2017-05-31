@@ -23,7 +23,7 @@ typedef struct {
 } UwpOcr;
 
 extern "C" {
-export UwpOcr* __stdcall uwpOcr_initialize(const char16* language);
+export UwpOcr* __stdcall uwpOcr_initialize(const char16* language, uwpOcr_Callback callback);
 export void __stdcall uwpOcr_terminate(UwpOcr* instance);
 export void __stdcall uwpOcr_recognize(UwpOcr* instance, const RGBQUAD* image, unsigned int width, unsigned int height);
 }
